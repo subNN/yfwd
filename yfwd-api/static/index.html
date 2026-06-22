@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一饭为定管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* 登录页面 */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .login-form input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .login-form button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .login-form button:hover {
+            background-color: #45a049;
+        }
+        
+        .login-hint {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* 管理控制台 */
+        .dashboard {
+            display: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            color: #333;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-info span {
+            margin-right: 20px;
+        }
+        
+        .logout-btn {
+            padding: 8px 16px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .logout-btn:hover {
+            background-color: #da190b;
+        }
+        
+        /* 统计卡片 */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+        }
+        
+        .tab-btn.active {
+            border-bottom-color: #4CAF50;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        /* 内容区域 */
+        .tab-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        /* 操作按钮 */
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .delete-btn:hover {
+            background-color: #da190b;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        /* 错误提示 */
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #f44336;
+        }
+        
+        /* 折叠容器 */
+        .collapse-container {
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .collapse-header {
+            background-color: #f2f2f2;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .collapse-header:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .collapse-content {
+            padding: 15px;
+            background-color: white;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab-btn {
+                border-bottom: none;
+                border-right: 2px solid transparent;
+                padding: 10px;
+            }
+            
+            .tab-btn.active {
+                border-right-color: #4CAF50;
+                border-bottom-color: transparent;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div class="login-container" id="login-container">
+        <h2>一饭为定管理系统</h2>
+        <form class="login-form" onsubmit="event.preventDefault(); adminLogin();">
+            <input type="text" id="username" placeholder="用户名" required>
+            <input type="password" id="password" placeholder="密码" required>
+            <button type="submit">登录</button>
+        </form>
+    </div>
+
+    <!-- 管理控制台 -->
+    <div class="dashboard" id="dashboard">
+        <div class="container">
+            <!-- 头部 -->
+            <div class="header">
+                <h1>一饭为定管理系统</h1>
+                <div class="user-info">
+                    <span>管理员</span>
+                    <button class="logout-btn" onclick="logout()">退出登录</button>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-container" id="stats-container">
+                <div class="stat-card">
+                    <h3>用户总数</h3>
+                    <div class="value" id="user-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>菜单总数</h3>
+                    <div class="value" id="menu-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>订单总数</h3>
+                    <div class="value" id="order-count">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>今日订单</h3>
+                    <div class="value" id="today-order-count">0</div>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('users')">用户管理</button>
+                <button class="tab-btn" onclick="switchTab('orders')">订单管理</button>
+                <button class="tab-btn" onclick="switchTab('menus')">菜单管理</button>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="tab-content">
+                <!-- 用户管理 -->
+                <div id="users-tab" class="tab-pane active">
+                    <div id="users-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 订单管理 -->
+                <div id="orders-tab" class="tab-pane">
+                    <div id="orders-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 菜单管理 -->
+                <div id="menus-tab" class="tab-pane">
+                    <div id="menus-content">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let adminToken = getAdminToken();
+
+        // 获取带过期时间的token
+        function getAdminToken() {
+            const stored = localStorage.getItem('adminTokenData');
+            if (!stored) return null;
+            
+            try {
+                const data = JSON.parse(stored);
+                if (data.expireTime && Date.now() < data.expireTime) {
+                    return data.token;
+                } else {
+                    localStorage.removeItem('adminTokenData');
+                    return null;
+                }
+            } catch (e) {
+                localStorage.removeItem('adminTokenData');
+                return null;
+            }
+        }
+
+        // 设置带过期时间的token（30分钟）
+        function setAdminToken(token) {
+            const data = {
+                token: token,
+                expireTime: Date.now() + (30 * 60 * 1000) // 30分钟后过期
+            };
+            localStorage.setItem('adminTokenData', JSON.stringify(data));
+        }
+
+        // 初始化
+        window.onload = function() {
+            if (adminToken) {
+                showDashboard();
+                loadStats();
+                loadUsers();
+            }
+        };
+
+        // 管理员登录
+        function adminLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            fetch('/api/admin/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0 && data.token) {
+                    adminToken = data.token;
+                    setAdminToken(adminToken);
+                    showDashboard();
+                    loadStats();
+                    loadUsers();
+                } else {
+                    alert('登录失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('登录错误:', error);
+                alert('登录失败，请检查网络连接');
+            });
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('adminTokenData');
+            adminToken = null;
+            document.getElementById('login-container').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        // 显示控制台
+        function showDashboard() {
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        // 切换标签页
+        function switchTab(tabName) {
+            // 切换标签按钮状态
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 切换内容
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // 加载对应数据
+            if (tabName === 'users') {
+                loadUsers();
+            } else if (tabName === 'orders') {
+                loadOrders();
+            } else if (tabName === 'menus') {
+                loadMenus();
+            }
+        }
+
+        // 加载统计数据
+        function loadStats() {
+            fetch('/api/admin/stats', {
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    document.getElementById('user-count').textContent = data.data.userCount || 0;
+                    document.getElementById('menu-count').textContent = data.data.menuCount || 0;
+                    document.getElementById('order-count').textContent = data.data.orderCount || 0;
+                    document.getElementById('today-order-count').textContent = 0;
+                }
+            })
+            .catch(error => {
+                console.error('加载统计数据错误:', error);
+            });
+        }
+
+        // 加载用户数据
+        function loadUsers() {
+            const content = document.getElementById('users-content');
+
+            fetch('/api/admin/users', {
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<div class="loading">暂无用户数据</div>';
+                        return;
+                    }
+
+                    // 按ID升序排序（从小到大）
+                    const sortedUsers = data.data.sort((a, b) => a.id - b.id);
+
+                    let html = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>昵称</th>
+                                    <th>注册时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    sortedUsers.forEach(user => {
+                        html += `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.nickname || '未设置'}</td>
+                                <td>${user.created_at || ''}</td>
+                                <td>
+                                    <button class="action-btn delete-btn" onclick="deleteUser(${user.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">加载失败：${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('加载用户数据错误:', error);
+                content.innerHTML = '<div class="error">加载失败，请检查网络连接</div>';
+            });
+        }
+
+        // 删除用户
+        function deleteUser(userId) {
+            if (!confirm('确定要删除这个用户吗？')) {
+                return;
+            }
+
+            fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    alert('删除成功');
+                    loadUsers();
+                    loadStats();
+                } else {
+                    alert('删除失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('删除用户错误:', error);
+                alert('删除失败，请检查网络连接');
+            });
+        }
+
+        // 加载订单数据
+        function loadOrders() {
+            const content = document.getElementById('orders-content');
+
+            fetch('/api/admin/orders', {
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<div class="loading">暂无订单数据</div>';
+                        return;
+                    }
+
+                    // 按ID升序排序（从小到大）
+                    const sortedOrders = data.data.sort((a, b) => a.id - b.id);
+
+                    // 按用户分组
+                    const ordersByUser = {};
+                    sortedOrders.forEach(order => {
+                        const userId = order.user_id;
+                        const userName = order.nickname || '未知用户';
+                        const userKey = `${userName} (ID: ${userId})`;
+                        if (!ordersByUser[userKey]) {
+                            ordersByUser[userKey] = [];
+                        }
+                        ordersByUser[userKey].push(order);
+                    });
+
+                    let html = '';
+
+                    // 生成按用户折叠的订单
+                    Object.keys(ordersByUser).forEach(userKey => {
+                        const userOrders = ordersByUser[userKey];
+                        html += `
+                            <div class="collapse-container">
+                                <div class="collapse-header" onclick="toggleCollapse(this)">
+                                    <span>${userKey} (${userOrders.length}个订单)</span>
+                                    <span>▶</span>
+                                </div>
+                                <div class="collapse-content" style="display: none;">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>订单ID</th>
+                                                <th>餐别</th>
+                                                <th>选择的菜品</th>
+                                                <th>下单时间</th>
+                                                <th>总价</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                        `;
+
+                        userOrders.forEach(order => {
+                            let dishesHtml = '';
+                            let totalAmount = 0;
+                            if (Array.isArray(order.selected_dishes) && order.selected_dishes.length > 0) {
+                                dishesHtml = '<ul style="margin: 0; padding-left: 20px;">';
+                                order.selected_dishes.forEach(dish => {
+                                    if (typeof dish === 'object') {
+                                        const name = dish.name || '未知菜品';
+                                        const price = dish.price != null ? parseFloat(dish.price) : 0;
+                                        const quantity = dish.quantity != null ? parseInt(dish.quantity) : 1;
+                                        totalAmount += price * quantity;
+                                        dishesHtml += `<li>${name} ¥${price} x${quantity}</li>`;
+                                    } else {
+                                        dishesHtml += `<li>${dish}</li>`;
+                                    }
+                                });
+                                dishesHtml += '</ul>';
+                            } else {
+                                dishesHtml = '无';
+                            }
+
+                            html += `
+                                <tr>
+                                    <td>${order.id}</td>
+                                    <td>${order.meal_type || '未知'}</td>
+                                    <td>${dishesHtml}</td>
+                                    <td>${order.order_time || ''}</td>
+                                    <td>¥${totalAmount.toFixed(2)}</td>
+                                    <td>
+                                        <button class="action-btn delete-btn" onclick="deleteOrder(${order.id})">删除</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">加载失败：${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('加载订单数据错误:', error);
+                content.innerHTML = '<div class="error">加载失败，请检查网络连接</div>';
+            });
+        }
+
+        // 加载菜单数据
+        function loadMenus() {
+            const content = document.getElementById('menus-content');
+
+            fetch('/api/admin/menus', {
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    if (data.data.length === 0) {
+                        content.innerHTML = '<div class="loading">暂无菜单数据</div>';
+                        return;
+                    }
+
+                    // 按ID升序排序（从小到大）
+                    const sortedMenus = data.data.sort((a, b) => a.id - b.id);
+
+                    // 按用户分组
+                    const menusByUser = {};
+                    sortedMenus.forEach(menu => {
+                        const userId = menu.user_id;
+                        const userKey = `用户ID: ${userId}`;
+                        if (!menusByUser[userKey]) {
+                            menusByUser[userKey] = [];
+                        }
+                        menusByUser[userKey].push(menu);
+                    });
+
+                    let html = '';
+
+                    // 生成按用户折叠的菜单
+                    Object.keys(menusByUser).forEach(userKey => {
+                        const userMenus = menusByUser[userKey];
+                        html += `
+                            <div class="collapse-container">
+                                <div class="collapse-header" onclick="toggleCollapse(this)">
+                                    <span>${userKey} (${userMenus.length}个菜单)</span>
+                                    <span>▶</span>
+                                </div>
+                                <div class="collapse-content" style="display: none;">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>菜单ID</th>
+                                                <th>菜单名称</th>
+                                                <th>菜品数量</th>
+                                                <th>菜单内容</th>
+                                                <th>更新时间</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                        `;
+
+                        userMenus.forEach(menu => {
+                            const dishCount = menu.dishes && Array.isArray(menu.dishes) ? menu.dishes.length : 0;
+                            
+                            let dishesHtml = '';
+                            if (menu.dishes && Array.isArray(menu.dishes)) {
+                                dishesHtml = menu.dishes.map(dish => {
+                                    const name = typeof dish === 'object' ? (dish.name || '未知菜品') : dish;
+                                    return `<li>${name}</li>`;
+                                }).join('');
+                            }
+
+                            html += `
+                                <tr>
+                                    <td>${menu.id}</td>
+                                    <td>${menu.name || ''}</td>
+                                    <td>${dishCount}</td>
+                                    <td><ul>${dishesHtml || '无菜品'}</ul></td>
+                                    <td>${menu.updated_at || menu.created_at || ''}</td>
+                                    <td>
+                                        <button class="action-btn delete-btn" onclick="deleteMenu(${menu.id})">删除</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">加载失败：${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('加载菜单数据错误:', error);
+                content.innerHTML = '<div class="error">加载失败，请检查网络连接</div>';
+            });
+        }
+
+        // 删除菜单
+        function deleteMenu(menuId) {
+            if (!confirm('确定要删除这个菜单吗？')) {
+                return;
+            }
+
+            fetch(`/api/admin/menus/${menuId}`, {
+                method: 'DELETE',
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    alert('删除成功');
+                    loadMenus();
+                    loadStats();
+                } else {
+                    alert('删除失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('删除菜单错误:', error);
+                alert('删除失败，请检查网络连接');
+            });
+        }
+
+        // 删除订单
+        function deleteOrder(orderId) {
+            if (!confirm('确定要删除这个订单吗？')) {
+                return;
+            }
+
+            fetch(`/api/admin/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: {
+                    'token': adminToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 0) {
+                    alert('删除成功');
+                    loadOrders();
+                    loadStats();
+                } else {
+                    alert('删除失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('删除订单错误:', error);
+                alert('删除失败，请检查网络连接');
+            });
+        }
+
+        // 切换折叠状态
+        function toggleCollapse(element) {
+            const content = element.nextElementSibling;
+            const arrow = element.querySelector('span:last-child');
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+    </script>
+</body>
+</html>

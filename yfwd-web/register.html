@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>一饭为定 · 邮箱注册</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="auth.css">
+  <link rel="icon" type="image/jpeg" href="一饭为定.jpg">
+  <style>
+    /* === 柱状图排序验证码 样式 === */
+    .captcha-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .captcha-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0;
+    }
+    .captcha-label svg {
+      width: 14px;
+      height: 14px;
+      color: #6366f1;
+    }
+    .captcha-timer {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6366f1;
+      background: #eef2ff;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .captcha-timer svg {
+      width: 13px;
+      height: 13px;
+    }
+    .captcha-timer.urgent {
+      background: #fef2f2;
+      color: #dc2626;
+      animation: captchaPulse 0.8s ease infinite alternate;
+    }
+    @keyframes captchaPulse {
+      from { opacity: 0.7; }
+      to { opacity: 1; }
+    }
+
+    .captcha-card {
+      background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+      border: 2px solid #e5e7eb;
+      border-radius: 1rem;
+      padding: 1rem 1.1rem 0.85rem;
+      transition: border-color 0.2s ease;
+    }
+    .captcha-card:hover {
+      border-color: #c7d2fe;
+    }
+
+    .captcha-instruction {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.82rem;
+      color: #4b5563;
+    }
+    .captcha-instruction .instruction-icon {
+      font-size: 0.95rem;
+    }
+    .captcha-instruction .instruction-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+    .captcha-instruction em {
+      color: #6366f1;
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    .captcha-refresh {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      background: transparent;
+      border: 1.5px solid #e5e7eb;
+      color: #6b7280;
+      padding: 0.4rem 0.6rem;
+      border-radius: 0.6rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.15s ease;
+    }
+    .captcha-refresh svg { width: 13px; height: 13px; }
+    .captcha-refresh:hover:not(:disabled) {
+      background: #6366f1;
+      border-color: #6366f1;
+      color: #fff;
+    }
+    .captcha-refresh:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .captcha-bars-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 0.5rem;
+      height: 140px;
+      padding: 0.5rem 0.2rem 0.3rem;
+      position: relative;
+    }
+    .captcha-bars-container::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, #d1d5db 50%, transparent 100%);
+      border-radius: 1px;
+      opacity: 0.5;
+    }
+
+    .captcha-bar {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 16.666%;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      cursor: grab;
+      user-select: none;
+      position: relative;
+      transition: transform 0.2s ease;
+      box-sizing: border-box;
+      padding: 0 2px;
+    }
+    .captcha-bar:active {
+      cursor: grabbing;
+    }
+
+    .captcha-bar-inner {
+      width: 100%;
+      max-width: 42px;
+      background: linear-gradient(180deg, #818cf8 0%, #6366f1 60%, #4f46e5 100%);
+      border-radius: 0.45rem 0.45rem 0.25rem 0.25rem;
+      position: relative;
+      box-shadow: 0 4px 8px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      animation: captchaBarIn 0.4s ease both;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 0.35rem;
+      flex-shrink: 0;
+    }
+    @keyframes captchaBarIn {
+      from { transform: translateY(15px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .captcha-bar:nth-child(2) .captcha-bar-inner { animation-delay: 0.05s; }
+    .captcha-bar:nth-child(3) .captcha-bar-inner { animation-delay: 0.1s; }
+    .captcha-bar:nth-child(4) .captcha-bar-inner { animation-delay: 0.15s; }
+    .captcha-bar:nth-child(5) .captcha-bar-inner { animation-delay: 0.2s; }
+    .captcha-bar:nth-child(6) .captcha-bar-inner { animation-delay: 0.25s; }
+
+    .captcha-bar:hover .captcha-bar-inner {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .captcha-bar-top {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      height: 8px;
+      background: linear-gradient(180deg, #a5b4fc 0%, #818cf8 100%);
+      border-radius: 0.35rem 0.35rem 0.15rem 0.15rem;
+      opacity: 0.8;
+    }
+
+    .captcha-bar-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      margin-top: 0.35rem;
+    }
+
+    .captcha-bar-placeholder {
+      cursor: default;
+    }
+    .captcha-bar-placeholder .captcha-bar-inner {
+      background: #d1d5db;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .captcha-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+    .captcha-hint.error {
+      color: #dc2626;
+    }
+    .captcha-hint svg {
+      flex-shrink: 0;
+    }
+
+    .captcha-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .captcha-verified-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: rgba(243, 250, 246, 0.96);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-radius: 0.85rem;
+      animation: verifiedIn 0.35s ease both;
+    }
+    .captcha-verified-overlay svg {
+      width: 2.8rem;
+      height: 2.8rem;
+      color: #16a34a;
+      stroke-width: 2.5;
+      filter: drop-shadow(0 2px 4px rgba(22, 163, 74, 0.3));
+    }
+    .captcha-verified-overlay span {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #16a34a;
+    }
+    @keyframes verifiedIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .captcha-bars-container.captcha-disabled {
+      opacity: 0.35;
+      filter: grayscale(0.6);
+      pointer-events: none;
+    }
+    .captcha-instruction .captcha-refresh:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 480px) {
+      .captcha-bars-container { height: 110px; gap: 0.35rem; }
+      .captcha-bar-inner { max-width: 32px; }
+      .captcha-bar-label { font-size: 0.65rem; }
+      .captcha-instruction { font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="auth-app"></div>
+
+  <script type="module">
+    import { API_BASE_URL } from './store.js?v=20260615-samwaf';
+    import { AnimatedCharacters, createApp, ref, computed, watch, onMounted, onUnmounted } from './auth.js';
+
+    const { defineComponent } = Vue;
+
+    // 通用邮箱正则：支持任意邮箱（QQ、Gmail、163、企业邮箱等）
+    // 发送方是 QQ 邮箱 SMTP，但接收方可以是任意邮箱
+    const EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
+
+    const passwordStrength = (pwd) => {
+      if (!pwd) return { score: 0, label: '', color: '' };
+      let score = 0;
+      if (pwd.length >= 6) score++;
+      if (pwd.length >= 10) score++;
+      if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+      if (/\d/.test(pwd)) score++;
+      if (/[^\w\s]/.test(pwd)) score++;
+      const map = [
+        { label: '请输入密码', color: '#e5e7eb' },
+        { label: '弱：太简单了', color: '#ef4444' },
+        { label: '较弱', color: '#f97316' },
+        { label: '中等', color: '#eab308' },
+        { label: '良好', color: '#22c55e' },
+        { label: '强：非常安全', color: '#10b981' },
+      ];
+      return { score, ...map[Math.min(score, 5)] };
+    };
+
+    const RegisterPage = defineComponent({
+      name: 'RegisterPage',
+      components: { AnimatedCharacters },
+      setup() {
+        const email = ref('');
+        const code = ref('');
+        const password = ref('');
+        const confirmPassword = ref('');
+        const showPassword = ref(false);
+        const showConfirm = ref(false);
+        const isTyping = ref(false);
+        const isLoading = ref(false);
+        const isSendingCode = ref(false);
+        const registerSuccess = ref(false);
+        const registerFailed = ref(false);
+        const errorMessage = ref('');
+        const codeHint = ref('');
+        const codeHintError = ref(false);
+        const cooldown = ref(0);
+        let cooldownTimer = null;
+
+        // 柱状图排序验证码
+        const captchaId = ref('');
+        const captchaBars = ref([]);
+        const captchaExpired = ref(0);
+        const captchaHint = ref('拖动柱子：从左到右按从高到低排序');
+        const captchaHintError = ref(false);
+        const captchaVerified = ref(false);
+        const isLoadingCaptcha = ref(false);
+        let captchaTimer = null;
+        let dragSrcIdx = -1;
+
+        const errors = ref({ email: '', code: '', password: '', confirm: '', agree: '' });
+        const agreeTerms = ref(false);
+
+        const strength = computed(() => passwordStrength(password.value));
+
+        const canSendCode = computed(() =>
+          !isSendingCode.value &&
+          cooldown.value === 0 &&
+          EMAIL_RE.test(email.value.trim()) &&
+          captchaBars.value.length > 0
+        );
+
+        const clearCaptchaTimer = () => {
+          if (captchaTimer) { clearInterval(captchaTimer); captchaTimer = null; }
+        };
+
+        const loadCaptcha = async () => {
+          clearCaptchaTimer();
+          captchaExpired.value = 0;
+          captchaVerified.value = false;
+          isLoadingCaptcha.value = true;
+          captchaHintError.value = false;
+          captchaHint.value = '正在生成验证码...';
+
+          const base = API_BASE_URL.replace(/\/+$/, '');
+          try {
+            const res = await fetch(`${base}/api/auth/captcha`, { method: 'GET' });
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (jsonErr) {
+              data = { success: false };
+            }
+            if (data.success && Array.isArray(data.bars) && data.bars.length > 0) {
+              captchaId.value = data.captcha_id || '';
+              captchaBars.value = [...data.bars];
+              captchaHint.value = '拖动柱子：从左到右按从高到低排序';
+              const limit = Number(data.time_limit) || 20;
+              captchaExpired.value = limit;
+              captchaTimer = setInterval(() => {
+                captchaExpired.value -= 1;
+                if (captchaExpired.value <= 0) {
+                  clearCaptchaTimer();
+                  captchaExpired.value = 0;
+                  captchaHintError.value = true;
+                  captchaHint.value = '验证已超时，请点击刷新按钮重新生成';
+                  captchaBars.value = [];
+                  captchaId.value = '';
+                }
+              }, 1000);
+            } else {
+              captchaHintError.value = true;
+              captchaBars.value = [];
+              captchaId.value = '';
+              captchaHint.value = data.message || '验证码生成失败，请点击刷新按钮重试';
+            }
+          } catch (err) {
+            captchaHintError.value = true;
+            captchaBars.value = [];
+            captchaId.value = '';
+            captchaHint.value = '网络错误：请确保后端服务已启动';
+          } finally {
+            isLoadingCaptcha.value = false;
+          }
+        };
+
+        const onDragStart = (e, idx) => {
+          if (captchaExpired.value <= 0) return;
+          dragSrcIdx = idx;
+          const target = e.currentTarget;
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(idx));
+          }
+          target.style.opacity = '0.45';
+        };
+
+        const onDragEnd = (e) => {
+          if (e.currentTarget) e.currentTarget.style.opacity = '1';
+          dragSrcIdx = -1;
+        };
+
+        const onDragOver = (e) => {
+          if (captchaExpired.value <= 0) return;
+          if (e.preventDefault) e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+          return false;
+        };
+
+        let verifyingCaptcha = false;
+
+        const verifyCaptcha = async () => {
+          if (verifyingCaptcha) return;
+          if (captchaVerified.value) return;
+          if (!captchaId.value || captchaBars.value.length === 0) return;
+          if (captchaExpired.value <= 0) return;
+
+          verifyingCaptcha = true;
+          const answer = captchaBars.value.map(b => b.id).join(',');
+          const base = API_BASE_URL.replace(/\/+$/, '');
+
+          try {
+            const res = await fetch(`${base}/api/auth/verify-captcha`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                captcha_id: captchaId.value,
+                captcha_answer: answer,
+              }),
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { data = { success: false }; }
+
+            if (data.success) {
+              captchaVerified.value = true;
+              clearCaptchaTimer();
+              captchaHintError.value = false;
+              captchaHint.value = '人机验证通过，请点击发送验证码';
+            } else {
+              // 验证失败不显示错误提示（用户继续调整即可），只清除已通过状态
+            }
+          } catch (err) {
+            // 网络错误忽略
+          } finally {
+            verifyingCaptcha = false;
+          }
+        };
+
+        const onDrop = (e, targetIdx) => {
+          if (captchaExpired.value <= 0) return;
+          if (captchaVerified.value) return;
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          const srcIdx = dragSrcIdx;
+          if (srcIdx === -1 || srcIdx === targetIdx) return;
+
+          const newBars = [...captchaBars.value];
+          const [moved] = newBars.splice(srcIdx, 1);
+          newBars.splice(targetIdx, 0, moved);
+          captchaBars.value = newBars;
+
+          // 拖动完成后自动验证
+          verifyCaptcha();
+        };
+
+        // === Touch 拖动支持 ===
+        let touchEl = null;
+        let touchGhost = null;
+        let touchStartIdx = -1;
+        let touchLastTargetIdx = -1;
+        let touchContainer = null;
+
+        const onTouchStart = (e, idx) => {
+          if (captchaExpired.value <= 0) return;
+          if (!e.touches || e.touches.length === 0) return;
+          touchStartIdx = idx;
+          const t = e.touches[0];
+          touchEl = e.currentTarget;
+          touchContainer = document.querySelector('.captcha-bars-container');
+
+          // 创建拖动 ghost
+          touchGhost = touchEl.cloneNode(true);
+          touchGhost.style.position = 'fixed';
+          touchGhost.style.zIndex = '9999';
+          touchGhost.style.pointerEvents = 'none';
+          touchGhost.style.opacity = '0.8';
+          touchGhost.style.transform = 'scale(1.08)';
+          const rect = touchEl.getBoundingClientRect();
+          touchGhost.style.left = (rect.left + (rect.width / 2) - 25) + 'px';
+          touchGhost.style.top = (rect.top + (rect.height / 2) - (rect.height / 2)) + 'px';
+          touchGhost.style.width = rect.width + 'px';
+          touchGhost.style.height = rect.height + 'px';
+          touchGhost.style.transition = 'none';
+          document.body.appendChild(touchGhost);
+          touchEl.style.opacity = '0.3';
+        };
+
+        const getBarIdxFromTouch = (touchX) => {
+          if (!touchContainer) return -1;
+          const rect = touchContainer.getBoundingClientRect();
+          const relX = touchX - rect.left;
+          if (relX < 0 || relX > rect.width) return -1;
+          const barCount = captchaBars.value.length;
+          if (barCount === 0) return -1;
+          const cellWidth = rect.width / barCount;
+          const idx = Math.floor(relX / cellWidth);
+          return Math.max(0, Math.min(barCount - 1, idx));
+        };
+
+        const onTouchMove = (e) => {
+          if (!touchGhost || !e.touches || e.touches.length === 0) return;
+          if (e.preventDefault) e.preventDefault();
+          const t = e.touches[0];
+          const rect = touchEl.getBoundingClientRect();
+          touchGhost.style.left = (t.clientX - 25) + 'px';
+          touchGhost.style.top = (t.clientY - (rect.height / 2)) + 'px';
+
+          const targetIdx = getBarIdxFromTouch(t.clientX);
+          if (targetIdx >= 0 && targetIdx !== touchLastTargetIdx) {
+            touchLastTargetIdx = targetIdx;
+            // 实时高亮目标列
+            const allBars = touchContainer.querySelectorAll('.captcha-bar');
+            allBars.forEach((el, i) => {
+              el.style.transition = 'transform 0.2s ease';
+              if (i === targetIdx && targetIdx !== touchStartIdx) {
+                el.style.transform = 'translateY(-8px)';
+              } else {
+                el.style.transform = '';
+              }
+            });
+          }
+        };
+
+        const onTouchEnd = (e) => {
+          if (touchGhost) {
+            document.body.removeChild(touchGhost);
+            touchGhost = null;
+          }
+          if (touchEl) touchEl.style.opacity = '1';
+          const targetIdx = touchLastTargetIdx;
+          const srcIdx = touchStartIdx;
+          touchEl = null;
+          touchStartIdx = -1;
+          touchLastTargetIdx = -1;
+
+          if (targetIdx < 0 || srcIdx < 0 || srcIdx === targetIdx) return;
+
+          // 清除所有列的高亮
+          if (touchContainer) {
+            const allBars = touchContainer.querySelectorAll('.captcha-bar');
+            allBars.forEach((el) => { el.style.transform = ''; });
+          }
+
+          const newBars = [...captchaBars.value];
+          const [moved] = newBars.splice(srcIdx, 1);
+          newBars.splice(targetIdx, 0, moved);
+          captchaBars.value = newBars;
+
+          // 拖动完成后自动验证
+          verifyCaptcha();
+        };
+
+        onMounted(() => {
+          if (localStorage.getItem('token') && localStorage.getItem('userInfo')) {
+            window.location.href = 'index.html';
+          }
+          loadCaptcha();
+        });
+
+        onUnmounted(() => {
+          if (cooldownTimer) clearInterval(cooldownTimer);
+          clearCaptchaTimer();
+        });
+
+        const startCooldown = (seconds = 60) => {
+          cooldown.value = seconds;
+          if (cooldownTimer) clearInterval(cooldownTimer);
+          cooldownTimer = setInterval(() => {
+            cooldown.value -= 1;
+            if (cooldown.value <= 0) {
+              cooldown.value = 0;
+              clearInterval(cooldownTimer);
+              cooldownTimer = null;
+            }
+          }, 1000);
+        };
+
+        const validateEmailField = () => {
+          errors.value.email = '';
+          if (!email.value.trim()) {
+            errors.value.email = '请输入邮箱';
+            return false;
+          } else if (!EMAIL_RE.test(email.value.trim())) {
+            errors.value.email = '邮箱格式不正确（支持任意邮箱，如 12345@qq.com / user@gmail.com）';
+            return false;
+          }
+          return true;
+        };
+
+        const sendCode = async () => {
+          if (!validateEmailField()) return;
+          if (cooldown.value > 0 || isSendingCode.value) return;
+
+          if (!captchaId.value || captchaBars.value.length === 0) {
+            captchaHintError.value = true;
+            captchaHint.value = '请先完成柱状图排序验证，或点击刷新按钮重新生成';
+            return;
+          }
+          if (captchaExpired.value <= 0) {
+            captchaHintError.value = true;
+            captchaHint.value = '验证已超时，请点击刷新按钮重新生成';
+            return;
+          }
+
+          const captchaAnswer = captchaBars.value.map(b => b.id).join(',');
+
+          isSendingCode.value = true;
+          codeHintError.value = false;
+          codeHint.value = '正在发送验证码...';
+
+          const base = API_BASE_URL.replace(/\/+$/, '');
+
+          try {
+            const res = await fetch(`${base}/api/auth/send-code`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email.value.trim().toLowerCase(),
+                purpose: 'register',
+                captcha_id: captchaId.value,
+                captcha_answer: captchaAnswer,
+              }),
+            });
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (jsonErr) {
+              data = { success: false, message: '服务器响应异常，请稍后重试' };
+            }
+            if (data.success) {
+              codeHintError.value = false;
+              codeHint.value = `验证码已发送至 ${email.value.trim()}，10 分钟内有效`;
+              captchaVerified.value = true;
+              clearCaptchaTimer();
+              const wait = Number(data.cooldown) || 60;
+              startCooldown(wait);
+            } else {
+              codeHintError.value = true;
+              const msg = data.message || data.error || '发送失败，请稍后重试';
+              codeHint.value = msg;
+              if (data.error === 'EMAIL_REGISTERED') {
+                // 已注册：弹窗提示，阻止继续注册流程
+                codeHint.value = msg;
+                alert('该邮箱已注册，请直接登录');
+                captchaHintError.value = true;
+                captchaHint.value = '该邮箱已注册，请直接登录';
+                // 不重置验证码，用户可以去登录
+                setTimeout(() => {
+                  captchaHintError.value = false;
+                  captchaHint.value = '该邮箱已注册，请前往登录页面';
+                }, 3000);
+              } else if (data.error === 'CAPTCHA_FAILED') {
+                captchaHintError.value = true;
+                captchaHint.value = '排序不正确，请重新尝试';
+                setTimeout(loadCaptcha, 800);
+              } else if (data.error === 'RATE_LIMIT_IP' || data.error === 'RATE_LIMIT_EMAIL' || data.error === 'RATE_LIMIT_RESEND') {
+                // 限流错误，不需要重置验证码
+              } else {
+                captchaHintError.value = true;
+                captchaHint.value = msg;
+                setTimeout(loadCaptcha, 800);
+              }
+            }
+          } catch (err) {
+            codeHintError.value = true;
+            codeHint.value = '网络错误，请检查网络或后端服务是否启动';
+          } finally {
+            isSendingCode.value = false;
+          }
+        };
+
+        const validate = () => {
+          errors.value = { email: '', code: '', password: '', confirm: '', agree: '' };
+          let ok = true;
+          if (!email.value.trim()) {
+            errors.value.email = '请输入邮箱';
+            ok = false;
+          } else if (!EMAIL_RE.test(email.value.trim())) {
+            errors.value.email = '邮箱格式不正确（支持任意邮箱，如 12345@qq.com / user@gmail.com）';
+            ok = false;
+          }
+          if (!code.value.trim()) {
+            errors.value.code = '请输入邮箱验证码';
+            ok = false;
+          } else if (!/^\d{4,8}$/.test(code.value.trim())) {
+            errors.value.code = '验证码格式不正确';
+            ok = false;
+          }
+          if (!password.value) {
+            errors.value.password = '请输入密码';
+            ok = false;
+          } else if (password.value.length < 6) {
+            errors.value.password = '密码至少 6 位';
+            ok = false;
+          }
+          if (!confirmPassword.value) {
+            errors.value.confirm = '请再次输入密码';
+            ok = false;
+          } else if (password.value !== confirmPassword.value) {
+            errors.value.confirm = '两次输入的密码不一致';
+            ok = false;
+          }
+          if (!agreeTerms.value) {
+            errors.value.agree = '请阅读并同意服务条款';
+            ok = false;
+          }
+          return ok;
+        };
+
+        const handleRegister = async () => {
+          if (!validate()) return;
+          isLoading.value = true;
+          errorMessage.value = '';
+          registerFailed.value = false;
+          registerSuccess.value = false;
+
+          const base = API_BASE_URL.replace(/\/+$/, '');
+
+          try {
+            const res = await fetch(`${base}/api/auth/register`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email.value.trim().toLowerCase(),
+                code: code.value.trim(),
+                password: password.value,
+                nickname: email.value.trim().split('@')[0], // 默认昵称为邮箱前缀
+              }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (data.success) {
+              registerSuccess.value = true;
+              localStorage.setItem('token', data.token || '');
+              localStorage.setItem('userInfo', JSON.stringify(
+                data.user || { email: email.value.trim(), nickname: email.value.trim().split('@')[0] }
+              ));
+              setTimeout(() => {
+                window.location.href = 'index.html';
+              }, 1500);
+            } else {
+              throw new Error(data.message || data.error || '注册失败');
+            }
+          } catch (err) {
+            registerFailed.value = true;
+            errorMessage.value = err.message || '网络错误，请检查后端服务是否启动';
+            setTimeout(() => { registerFailed.value = false; }, 3000);
+          } finally {
+            isLoading.value = false;
+          }
+        };
+
+        return {
+          email, code, password, confirmPassword, showPassword, showConfirm,
+          isTyping, isLoading, isSendingCode, cooldown, canSendCode, codeHint, codeHintError,
+          registerSuccess, registerFailed, errorMessage, errors,
+          agreeTerms, strength,
+          captchaId, captchaBars, captchaExpired, captchaHint, captchaHintError, captchaVerified, isLoadingCaptcha,
+          sendCode, validate, handleRegister, loadCaptcha,
+          onDragStart, onDragEnd, onDragOver, onDrop,
+          onTouchStart, onTouchMove, onTouchEnd,
+        };
+      },
+      template: `
+        <div class="login-page">
+          <!-- 左侧动画角色区 -->
+          <div class="left-section">
+            <div class="logo-section">
+              <a href="login.html" class="logo-link">
+                <img src="一饭为定.jpg" alt="一饭为定" class="logo-image">
+                <span class="brand-text">
+                  <span>一饭为定</span>
+                  <small>YI FAN WEI DING</small>
+                </span>
+              </a>
+            </div>
+
+            <div class="characters-section">
+              <animated-characters
+                :is-typing="isTyping"
+                :show-password="showPassword"
+                :password-length="password.length"
+                :login-failed="registerFailed"
+                :login-success="registerSuccess" />
+            </div>
+
+            <div class="grid-overlay"></div>
+            <div class="blur-circle blur-circle-1"></div>
+            <div class="blur-circle blur-circle-2"></div>
+          </div>
+
+          <!-- 右侧表单区 -->
+          <div class="right-section">
+            <div class="form-wrapper">
+              <div class="mobile-logo">
+                <img src="一饭为定.jpg" alt="一饭为定" class="logo-image">
+                <span>一饭为定</span>
+              </div>
+
+              <div class="form-header">
+                <h1 class="form-title">创建账号 ✨</h1>
+                <p class="form-subtitle">使用邮箱注册，让"今天吃什么"不再纠结</p>
+              </div>
+
+              <form @submit.prevent="handleRegister" class="login-form">
+                <!-- 邮箱 -->
+                <div class="form-group">
+                  <label for="email" class="form-label">邮箱</label>
+                  <div class="password-wrapper">
+                    <span class="input-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input id="email" v-model="email" type="email" placeholder="请输入邮箱（如 12345@qq.com / user@gmail.com）"
+                      class="form-input with-icon" autocomplete="email"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                  </div>
+                  <p v-if="errors.email" class="error-message">{{ errors.email }}</p>
+                </div>
+
+                <!-- 柱状图排序验证码 -->
+                <div class="form-group">
+                  <div class="captcha-header">
+                    <label class="form-label captcha-label">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2 4 6v6c0 4.5 3.5 8.2 8 10 4.5-1.8 8-5.5 8-10V6l-8-4z" />
+                      </svg>
+                      人机验证：柱状图排序
+                    </label>
+                    <div class="captcha-timer" :class="{ urgent: captchaExpired <= 7 }">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span v-if="captchaExpired > 0">{{ captchaExpired }}s</span>
+                      <span v-else>--</span>
+                    </div>
+                  </div>
+
+                  <div class="captcha-card">
+                    <div v-if="captchaVerified" class="captcha-verified-overlay">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+                        <polyline points="9 11 12 14 22 4" />
+                      </svg>
+                      <span>已通过人机验证</span>
+                    </div>
+                    <div class="captcha-instruction">
+                      <span class="instruction-icon">📊</span>
+                      <span class="instruction-text">拖动柱子：从左到右按 <em>从高到低</em> 排序</span>
+                      <button type="button" class="captcha-refresh" @click="loadCaptcha" :disabled="isLoadingCaptcha || captchaVerified" title="重新生成">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                          <path d="M21 3v5h-5" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div class="captcha-bars-container" :class="{ 'captcha-disabled': captchaVerified }">
+                      <template v-if="captchaBars.length > 0">
+                        <div v-for="(bar, idx) in captchaBars" :key="bar.id"
+                          class="captcha-bar"
+                          :draggable="!captchaVerified"
+                          @dragstart="onDragStart($event, idx)"
+                          @dragend="onDragEnd"
+                          @dragover="onDragOver"
+                          @drop="onDrop($event, idx)"
+                          @touchstart.passive="onTouchStart($event, idx)"
+                          @touchmove.prevent="onTouchMove"
+                          @touchend="onTouchEnd">
+                          <div class="captcha-bar-inner" :style="{ height: (bar.height * 1.3) + 'px', minHeight: (bar.height * 1.3) + 'px' }">
+                            <div class="captcha-bar-top"></div>
+                            <div class="captcha-bar-label">{{ bar.height }}</div>
+                          </div>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <div v-for="i in 6" :key="'placeholder-' + i" class="captcha-bar captcha-bar-placeholder">
+                          <div class="captcha-bar-inner" style="height: 42px; min-height: 42px; opacity: 0.25;"></div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <p :class="['captcha-hint', captchaHintError ? 'error' : '']">
+                      <svg v-if="!captchaHintError" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2 4 6v6c0 4.5 3.5 8.2 8 10 4.5-1.8 8-5.5 8-10V6l-8-4z" />
+                      </svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" x2="12" y1="8" y2="12" />
+                        <line x1="12" x2="12.01" y1="16" y2="16" />
+                      </svg>
+                      <span>{{ captchaHint }}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 验证码 -->
+                <div class="form-group">
+                  <label for="code" class="form-label">邮箱验证码</label>
+                  <div class="code-row">
+                    <input id="code" v-model="code" type="text" inputmode="numeric" maxlength="8"
+                      placeholder="6 位数字" class="form-input"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                    <button type="button" class="code-button" :disabled="!canSendCode"
+                      @click="sendCode">
+                      <span v-if="isSendingCode">发送中...</span>
+                      <span v-else-if="cooldown > 0">{{ cooldown }}s 后重发</span>
+                      <span v-else>发送验证码</span>
+                    </button>
+                  </div>
+                  <p v-if="codeHint" :class="['code-hint', codeHintError ? 'error' : '']">
+                    <svg v-if="!codeHintError" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                    <span>{{ codeHint }}</span>
+                  </p>
+                  <p v-if="errors.code" class="error-message">{{ errors.code }}</p>
+                </div>
+
+                <!-- 密码 -->
+                <div class="form-group">
+                  <label for="password" class="form-label">设置密码</label>
+                  <div class="password-wrapper">
+                    <input id="password" v-model="password"
+                      :type="showPassword ? 'text' : 'password'"
+                      placeholder="请输入密码（至少 6 位）"
+                      class="form-input" autocomplete="new-password"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                    <button type="button" @click="showPassword = !showPassword" class="password-toggle">
+                      <svg v-if="showPassword" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg v-else class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div v-if="password" style="display:flex; align-items:center; gap:0.5rem; margin-top:0.25rem;">
+                    <div style="flex:1; height:4px; background:#e5e7eb; border-radius:2px; overflow:hidden;">
+                      <div :style="{ width: (strength.score / 5 * 100) + '%', height: '100%', background: strength.color, transition: 'all 0.3s' }"></div>
+                    </div>
+                    <span :style="{ fontSize: '0.75rem', color: strength.color, fontWeight: 500 }">{{ strength.label }}</span>
+                  </div>
+                  <p v-if="errors.password" class="error-message">{{ errors.password }}</p>
+                </div>
+
+                <!-- 确认密码 -->
+                <div class="form-group">
+                  <label for="confirmPassword" class="form-label">确认密码</label>
+                  <div class="password-wrapper">
+                    <input id="confirmPassword" v-model="confirmPassword"
+                      :type="showConfirm ? 'text' : 'password'"
+                      placeholder="请再次输入密码"
+                      class="form-input" autocomplete="new-password"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                    <button type="button" @click="showConfirm = !showConfirm" class="password-toggle">
+                      <svg v-if="showConfirm" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg v-else class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p v-if="errors.confirm" class="error-message">{{ errors.confirm }}</p>
+                </div>
+
+                <!-- 同意条款 -->
+                <div>
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="agreeTerms" class="checkbox" />
+                    <span>我已阅读并同意 <a href="terms.html" target="_blank" style="color:#6366f1; text-decoration:none;">《服务条款》</a> 与 <a href="privacy.html" target="_blank" style="color:#6366f1; text-decoration:none;">《隐私政策》</a></span>
+                  </label>
+                  <p v-if="errors.agree" class="error-message" style="margin-top:0.25rem;">{{ errors.agree }}</p>
+                </div>
+
+                <div v-if="errorMessage" class="error-alert">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                  </svg>
+                  <span>{{ errorMessage }}</span>
+                </div>
+
+                <button type="submit" class="submit-button" :disabled="isLoading">
+                  <span class="button-text">{{ isLoading ? '正在创建账号...' : '注 册' }}</span>
+                  <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                  </svg>
+                </button>
+              </form>
+
+              <div class="auth-link">
+                已有账号？<a href="login.html">直接登录</a>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      `,
+    });
+
+    const app = createApp(RegisterPage);
+    app.mount('#auth-app');
+  </script>
+</body>
+</html>

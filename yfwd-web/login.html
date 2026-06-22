@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>一饭为定 · 邮箱登录</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="auth.css">
+  <link rel="icon" type="image/jpeg" href="一饭为定.jpg">
+  <style>
+    /* === 忘记密码弹窗样式 === */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+      animation: modalFadeIn 0.2s ease;
+      padding: 1rem;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-box {
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(99, 102, 241, 0.08);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      animation: modalSlideUp 0.25s ease;
+    }
+    @keyframes modalSlideUp {
+      from { transform: translateY(20px) scale(0.98); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 1.5rem 0.8rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 0.3rem;
+      border-radius: 0.4rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-close:hover {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .modal-form {
+      padding: 1.2rem 1.5rem 1.5rem;
+    }
+    .modal-desc {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    .modal-footer {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+    .modal-footer a {
+      color: #6366f1;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .modal-footer a:hover {
+      text-decoration: underline;
+    }
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .input-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+    }
+    .input-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="auth-app"></div>
+
+  <script type="module">
+    import { API_BASE_URL } from './store.js?v=20260615-samwaf';
+    import { AnimatedCharacters, createApp, ref, computed, watch, onMounted } from './auth.js';
+
+    const { defineComponent } = Vue;
+
+    // 通用邮箱正则：支持任意邮箱（QQ、Gmail、163、企业邮箱等）
+    // 发送方是 QQ 邮箱 SMTP，但接收方可以是任意邮箱
+    const EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
+
+    const LoginPage = defineComponent({
+      name: 'LoginPage',
+      components: { AnimatedCharacters },
+      setup() {
+        const email = ref('');
+        const password = ref('');
+        const rememberMe = ref(true);
+        const showPassword = ref(false);
+        const isTyping = ref(false);
+        const isLoading = ref(false);
+        const loginFailed = ref(false);
+        const loginSuccess = ref(false);
+        const errorMessage = ref('');
+
+        const forgotOpen = ref(false);
+        const forgotEmail = ref('');
+        const forgotLoading = ref(false);
+        const forgotError = ref('');
+        const forgotErrors = ref({ email: '' });
+
+        const errors = ref({ email: '', password: '' });
+
+        const validate = () => {
+          errors.value = { email: '', password: '' };
+          let ok = true;
+          if (!email.value.trim()) {
+            errors.value.email = '请输入邮箱';
+            ok = false;
+          } else if (!EMAIL_RE.test(email.value.trim())) {
+            errors.value.email = '邮箱格式不正确（支持任意邮箱，如 12345@qq.com / user@gmail.com）';
+            ok = false;
+          }
+          if (!password.value) {
+            errors.value.password = '请输入密码';
+            ok = false;
+          } else if (password.value.length < 6) {
+            errors.value.password = '密码至少 6 位';
+            ok = false;
+          }
+          return ok;
+        };
+
+        onMounted(() => {
+          if (localStorage.getItem('token') && localStorage.getItem('userInfo')) {
+            window.location.href = 'index.html';
+          }
+          // 记住上次登录的邮箱
+          const lastEmail = localStorage.getItem('lastLoginEmail');
+          if (lastEmail) email.value = lastEmail;
+        });
+
+        const handleSubmit = async () => {
+          if (!validate()) return;
+          isLoading.value = true;
+          errorMessage.value = '';
+          loginFailed.value = false;
+          loginSuccess.value = false;
+
+          const base = API_BASE_URL.replace(/\/+$/, '');
+
+          try {
+            const res = await fetch(`${base}/api/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email.value.trim().toLowerCase(),
+                password: password.value,
+                remember: rememberMe.value,
+              }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (data.success) {
+              loginSuccess.value = true;
+              localStorage.setItem('token', data.token || '');
+              localStorage.setItem('userInfo', JSON.stringify(data.user || { email: email.value.trim() }));
+              if (rememberMe.value) {
+                localStorage.setItem('lastLoginEmail', email.value.trim().toLowerCase());
+              }
+              setTimeout(() => {
+                window.location.href = 'index.html';
+              }, 1200);
+            } else {
+              throw new Error(data.message || data.error || '登录失败');
+            }
+          } catch (err) {
+            loginFailed.value = true;
+            errorMessage.value = err.message || '网络错误，请检查后端服务是否启动';
+            setTimeout(() => { loginFailed.value = false; }, 3000);
+          } finally {
+            isLoading.value = false;
+          }
+        };
+
+        const openForgotModal = () => {
+          forgotEmail.value = email.value.trim() || '';
+          forgotError.value = '';
+          forgotErrors.value = { email: '' };
+          forgotOpen.value = true;
+        };
+        const closeForgotModal = () => {
+          forgotOpen.value = false;
+          forgotLoading.value = false;
+        };
+        const validateForgotEmail = () => {
+          forgotErrors.value = { email: '' };
+          const e = forgotEmail.value.trim().toLowerCase();
+          if (!e) {
+            forgotErrors.value.email = '请输入邮箱';
+            return false;
+          }
+          if (!EMAIL_RE.test(e)) {
+            forgotErrors.value.email = '邮箱格式不正确';
+            return false;
+          }
+          return true;
+        };
+        const handleForgotSubmit = async () => {
+          if (!validateForgotEmail()) return;
+          forgotLoading.value = true;
+          forgotError.value = '';
+          const base = API_BASE_URL.replace(/\/+$/, '');
+          try {
+            const res = await fetch(`${base}/api/auth/forgot-password`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: forgotEmail.value.trim().toLowerCase() }),
+            });
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (jsonErr) {
+              data = { success: false, message: '服务器响应异常，请稍后重试' };
+            }
+            if (data.success) {
+              closeForgotModal();
+              window.location.href = `reset-password.html?email=${encodeURIComponent(forgotEmail.value.trim().toLowerCase())}`;
+            } else {
+              const msg = data.message || data.error || '校验失败';
+              if (data.error === 'USER_NOT_FOUND') {
+                forgotError.value = '该邮箱未注册，请检查后重试';
+              } else {
+                forgotError.value = msg;
+              }
+            }
+          } catch (err) {
+            forgotError.value = '网络错误，请检查网络或后端服务是否启动';
+          } finally {
+            forgotLoading.value = false;
+          }
+        };
+
+        return {
+          email, password, rememberMe, showPassword, isTyping, isLoading,
+          loginFailed, loginSuccess, errorMessage, errors,
+          forgotOpen, forgotEmail, forgotLoading, forgotError, forgotErrors,
+          validate, handleSubmit,
+          openForgotModal, closeForgotModal, handleForgotSubmit,
+        };
+      },
+      template: `
+        <div class="login-page">
+          <!-- 左侧动画角色区 -->
+          <div class="left-section">
+            <div class="logo-section">
+              <a href="login.html" class="logo-link">
+                <img src="一饭为定.jpg" alt="一饭为定" class="logo-image">
+                <span class="brand-text">
+                  <span>一饭为定</span>
+                  <small>YI FAN WEI DING</small>
+                </span>
+              </a>
+            </div>
+
+            <div class="characters-section">
+              <animated-characters
+                :is-typing="isTyping"
+                :show-password="showPassword"
+                :password-length="password.length"
+                :login-failed="loginFailed"
+                :login-success="loginSuccess" />
+            </div>
+
+            <!-- 装饰 -->
+            <div class="grid-overlay"></div>
+            <div class="blur-circle blur-circle-1"></div>
+            <div class="blur-circle blur-circle-2"></div>
+          </div>
+
+          <!-- 右侧表单区 -->
+          <div class="right-section">
+            <div class="form-wrapper">
+              <div class="mobile-logo">
+                <img src="一饭为定.jpg" alt="一饭为定" class="logo-image">
+                <span>一饭为定</span>
+              </div>
+
+              <div class="form-header">
+                <h1 class="form-title">欢迎回来 👋</h1>
+                <p class="form-subtitle">使用邮箱登录，开启今天的美味之旅</p>
+              </div>
+
+              <form @submit.prevent="handleSubmit" class="login-form">
+                <div class="form-group">
+                  <label for="email" class="form-label">邮箱</label>
+                  <div class="password-wrapper">
+                    <span class="input-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input id="email" v-model="email" type="email" placeholder="请输入邮箱（如 12345@qq.com / user@gmail.com）"
+                      class="form-input with-icon" autocomplete="email"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                  </div>
+                  <p v-if="errors.email" class="error-message">{{ errors.email }}</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="password" class="form-label">密码</label>
+                  <div class="password-wrapper">
+                    <input id="password" v-model="password"
+                      :type="showPassword ? 'text' : 'password'"
+                      placeholder="请输入密码（至少 6 位）"
+                      class="form-input" autocomplete="current-password"
+                      @focus="isTyping = true" @blur="isTyping = false" />
+                    <button type="button" @click="showPassword = !showPassword" class="password-toggle">
+                      <svg v-if="showPassword" class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg v-else class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                        <line x1="2" x2="22" y1="2" y2="22" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p v-if="errors.password" class="error-message">{{ errors.password }}</p>
+                </div>
+
+                <div class="form-options">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="rememberMe" class="checkbox" />
+                    <span>30 天内自动登录</span>
+                  </label>
+                  <a href="#" class="forgot-link" @click.prevent="openForgotModal">忘记密码？</a>
+                </div>
+
+                <div v-if="errorMessage" class="error-alert">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                  </svg>
+                  <span>{{ errorMessage }}</span>
+                </div>
+
+                <button type="submit" class="submit-button" :disabled="isLoading">
+                  <span class="button-text">{{ isLoading ? '正在登录...' : '登 录' }}</span>
+                  <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                  </svg>
+                </button>
+              </form>
+
+              <div class="auth-link">
+                还没有账号？<a href="register.html">立即注册</a>
+              </div>
+
+              <div style="margin-top: 1.25rem; text-align: center; font-size: 0.8rem; color: #94a3b8;">
+                登录即表示您已阅读并同意
+                <a href="terms.html" target="_blank" style="color: #6366f1; text-decoration: none;">《服务条款》</a>
+                与
+                <a href="privacy.html" target="_blank" style="color: #6366f1; text-decoration: none;">《隐私政策》</a>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 忘记密码弹窗 -->
+          <div v-if="forgotOpen" class="modal-overlay" @click.self="closeForgotModal">
+            <div class="modal-box">
+              <div class="modal-header">
+                <span class="modal-title">找回密码</span>
+                <button class="modal-close" @click="closeForgotModal" type="button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <form class="modal-form" @submit.prevent="handleForgotSubmit">
+                <div class="modal-desc">
+                  请输入您注册时使用的邮箱，系统将为您跳转至密码重置页面。
+                </div>
+                <div class="form-group">
+                  <label for="forgot-email" class="form-label">邮箱</label>
+                  <div class="input-wrapper">
+                    <span class="input-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input id="forgot-email" v-model="forgotEmail" type="email" placeholder="请输入注册邮箱"
+                      class="form-input with-icon" autocomplete="email" />
+                  </div>
+                  <p v-if="forgotErrors.email" class="error-message">{{ forgotErrors.email }}</p>
+                </div>
+
+                <div v-if="forgotError" class="error-alert">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                  </svg>
+                  <span>{{ forgotError }}</span>
+                </div>
+
+                <button type="submit" class="submit-button" :disabled="forgotLoading">
+                  <span v-if="forgotLoading">校验中...</span>
+                  <span v-else>下一步 →</span>
+                </button>
+
+                <div class="modal-footer">
+                  想起来了？<a href="#" @click.prevent="closeForgotModal">返回登录</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+
+    const app = createApp(LoginPage);
+    app.mount('#auth-app');
+  </script>
+</body>
+</html>
