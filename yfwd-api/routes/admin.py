@@ -51,10 +51,11 @@ def admin_get_users():
             user_list.append({
                 'id': user.get('id', user[0] if isinstance(user, (list, tuple)) else 0),
                 'openid': user.get('openid', user[1] if isinstance(user, (list, tuple)) else ''),
-                'nickname': user.get('nickname', user[2] if isinstance(user, (list, tuple)) else ''),
-                'avatar_url': user.get('avatar_url', user[3] if isinstance(user, (list, tuple)) else ''),
-                'created_at': user.get('created_at', user[4] if isinstance(user, (list, tuple)) else ''),
-                'last_login_at': user.get('last_login_at', user[5] if isinstance(user, (list, tuple)) and len(user) > 5 else '')
+                'email': user.get('email', user[2] if isinstance(user, (list, tuple)) and len(user) > 2 else ''),
+                'nickname': user.get('nickname', user[3] if isinstance(user, (list, tuple)) else ''),
+                'avatar_url': user.get('avatar_url', user[4] if isinstance(user, (list, tuple)) else ''),
+                'created_at': user.get('created_at', user[5] if isinstance(user, (list, tuple)) else ''),
+                'last_login_at': user.get('last_login_at', user[6] if isinstance(user, (list, tuple)) and len(user) > 6 else '')
             })
 
         return jsonify({

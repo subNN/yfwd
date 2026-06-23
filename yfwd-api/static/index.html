@@ -476,7 +476,7 @@
                     document.getElementById('user-count').textContent = data.data.userCount || 0;
                     document.getElementById('menu-count').textContent = data.data.menuCount || 0;
                     document.getElementById('order-count').textContent = data.data.orderCount || 0;
-                    document.getElementById('today-order-count').textContent = 0;
+                    document.getElementById('today-order-count').textContent = data.data.todayOrderCount || 0;
                 }
             })
             .catch(error => {
@@ -508,11 +508,12 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>昵称</th>
-                                    <th>注册时间</th>
-                                    <th>操作</th>
-                                </tr>
+                                <th>ID</th>
+                                <th>昵称</th>
+                                <th>邮箱</th>
+                                <th>注册时间</th>
+                                <th>操作</th>
+                            </tr>
                             </thead>
                             <tbody>
                     `;
@@ -522,6 +523,7 @@
                             <tr>
                                 <td>${user.id}</td>
                                 <td>${user.nickname || '未设置'}</td>
+                                <td>${user.email || '未设置'}</td>
                                 <td>${user.created_at || ''}</td>
                                 <td>
                                     <button class="action-btn delete-btn" onclick="deleteUser(${user.id})">删除</button>
@@ -595,7 +597,9 @@
                     sortedOrders.forEach(order => {
                         const userId = order.user_id;
                         const userName = order.nickname || '未知用户';
-                        const userKey = `${userName} (ID: ${userId})`;
+                        const userEmail = order.email || '';
+                        const emailDisplay = userEmail ? ` ${userEmail}` : '';
+                        const userKey = `${userName}${emailDisplay} (ID: ${userId})`;
                         if (!ordersByUser[userKey]) {
                             ordersByUser[userKey] = [];
                         }
@@ -706,7 +710,10 @@
                     const menusByUser = {};
                     sortedMenus.forEach(menu => {
                         const userId = menu.user_id;
-                        const userKey = `用户ID: ${userId}`;
+                        const userName = menu.nickname || '未知用户';
+                        const userEmail = menu.email || '';
+                        const emailDisplay = userEmail ? ` ${userEmail}` : '';
+                        const userKey = `${userName}${emailDisplay} (ID: ${userId})`;
                         if (!menusByUser[userKey]) {
                             menusByUser[userKey] = [];
                         }

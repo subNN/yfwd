@@ -933,9 +933,19 @@ class Database:
 
                 # 明确指定列顺序，避免受 ALTER TABLE 列顺序影响
                 if has_uuid:
-                    cursor.execute("SELECT id, user_id, name, dishes, uuid, created_at, updated_at FROM menus ORDER BY updated_at DESC")
+                    cursor.execute('''
+                        SELECT m.id, m.user_id, m.name, m.dishes, m.uuid, m.created_at, m.updated_at, u.nickname, u.email
+                        FROM menus m
+                        LEFT JOIN users u ON m.user_id = u.id
+                        ORDER BY m.updated_at DESC
+                    ''')
                 else:
-                    cursor.execute("SELECT id, user_id, name, dishes, created_at, updated_at FROM menus ORDER BY updated_at DESC")
+                    cursor.execute('''
+                        SELECT m.id, m.user_id, m.name, m.dishes, m.created_at, m.updated_at, u.nickname, u.email
+                        FROM menus m
+                        LEFT JOIN users u ON m.user_id = u.id
+                        ORDER BY m.updated_at DESC
+                    ''')
                 menus = []
                 for row in cursor.fetchall():
                     try:
@@ -946,13 +956,17 @@ class Database:
                         menus.append({
                             'id': row[0], 'user_id': row[1], 'name': row[2],
                             'dishes': dishes, 'uuid': row[4],
-                            'created_at': row[5], 'updated_at': row[6]
+                            'created_at': row[5], 'updated_at': row[6],
+                            'nickname': row[7] if len(row) > 7 else None,
+                            'email': row[8] if len(row) > 8 else None
                         })
                     else:
                         menus.append({
                             'id': row[0], 'user_id': row[1], 'name': row[2],
                             'dishes': dishes, 'uuid': None,
-                            'created_at': row[4], 'updated_at': row[5]
+                            'created_at': row[4], 'updated_at': row[5],
+                            'nickname': row[6] if len(row) > 6 else None,
+                            'email': row[7] if len(row) > 7 else None
                         })
                 return menus
         except Exception as e:
@@ -1109,14 +1123,14 @@ class Database:
 
                 if has_uuid:
                     cursor.execute('''
-                        SELECT uo.id, uo.user_id, uo.menu_id, uo.meal_type, uo.selected_dishes, uo.uuid, uo.order_time, u.nickname, u.avatar_url
+                        SELECT uo.id, uo.user_id, uo.menu_id, uo.meal_type, uo.selected_dishes, uo.uuid, uo.order_time, u.nickname, u.email, u.avatar_url
                         FROM user_orders uo
                         LEFT JOIN users u ON uo.user_id = u.id
                         ORDER BY uo.order_time DESC
                     ''')
                 else:
                     cursor.execute('''
-                        SELECT uo.id, uo.user_id, uo.menu_id, uo.meal_type, uo.selected_dishes, uo.order_time, u.nickname, u.avatar_url
+                        SELECT uo.id, uo.user_id, uo.menu_id, uo.meal_type, uo.selected_dishes, uo.order_time, u.nickname, u.email, u.avatar_url
                         FROM user_orders uo
                         LEFT JOIN users u ON uo.user_id = u.id
                         ORDER BY uo.order_time DESC
@@ -1137,7 +1151,8 @@ class Database:
                             'uuid': row[5],
                             'order_time': row[6],
                             'nickname': row[7] if len(row) > 7 else None,
-                            'avatar_url': row[8] if len(row) > 8 else None,
+                            'email': row[8] if len(row) > 8 else None,
+                            'avatar_url': row[9] if len(row) > 9 else None,
                         })
                     else:
                         orders.append({
@@ -1146,7 +1161,8 @@ class Database:
                             'uuid': None,
                             'order_time': row[5],
                             'nickname': row[6] if len(row) > 6 else None,
-                            'avatar_url': row[7] if len(row) > 7 else None,
+                            'email': row[7] if len(row) > 7 else None,
+                            'avatar_url': row[8] if len(row) > 8 else None,
                         })
                 return orders
         except Exception as e:
@@ -1213,7 +1229,9 @@ class Database:
                 menu_count = cursor.fetchone()[0]
                 cursor.execute("SELECT COUNT(*) FROM user_orders")
                 order_count = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM user_orders WHERE date(order_time) = date('now', 'localtime')")
+                # 使用 LIKE 查询今天的订单（兼容 ISO 格式如 2026-06-23T13:36:14）
+                today = datetime.now().strftime('%Y-%m-%d')
+                cursor.execute("SELECT COUNT(*) FROM user_orders WHERE order_time LIKE ?", (today + '%',))
                 today_order_count = cursor.fetchone()[0]
                 return {
                     'user_count': user_count,
